@@ -1,0 +1,481 @@
+
+-- =========================================================================
+-- TRABALHE+ : BANCO DE DADOS DO APLICATIVO
+-- Contexto: Marketplace de profissionais e serviços
+-- Normalização: 1FN, 2FN e 3FN
+-- =========================================================================
+
+DROP DATABASE IF EXISTS TrabalheMaisDB;
+
+CREATE DATABASE TrabalheMaisDB;
+
+USE TrabalheMaisDB;
+
+
+-- =========================================================================
+-- 1. TABELA USUARIO
+-- Cadastro de clientes e profissionais
+-- =========================================================================
+
+CREATE TABLE Usuario (
+    idUsuario INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+    nome VARCHAR(125) NOT NULL,
+
+    telefone VARCHAR(20) NOT NULL UNIQUE,
+
+    senha VARCHAR(255) NOT NULL,
+
+    tipoUsuario ENUM('CLIENTE', 'PROFISSIONAL')
+        NOT NULL,
+
+    dataCadastro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- =========================================================================
+-- 2. TABELA ENDERECO
+-- 1FN: Endereço separado em atributos atômicos
+-- Um usuário pode possuir vários endereços
+-- =========================================================================
+
+CREATE TABLE Endereco (
+    idEndereco INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+    idUsuario INT UNSIGNED NOT NULL,
+
+    logradouro VARCHAR(150) NOT NULL,
+
+    numero VARCHAR(10) NOT NULL,
+
+    bairro VARCHAR(60) NOT NULL,
+
+    cidade VARCHAR(60) NOT NULL,
+
+    uf CHAR(2) NOT NULL,
+
+    cep CHAR(8) NOT NULL,
+
+    CONSTRAINT fk_endereco_usuario
+        FOREIGN KEY (idUsuario)
+        REFERENCES Usuario(idUsuario)
+        ON DELETE CASCADE
+);
+
+
+-- =========================================================================
+-- 3. TABELA PROFISSAO
+-- Cadastro das categorias profissionais
+-- =========================================================================
+
+CREATE TABLE Profissao (
+    idProfissao INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+    nomeProfissao VARCHAR(100) NOT NULL UNIQUE,
+
+    descricao VARCHAR(255)
+);
+
+
+-- =========================================================================
+-- 4. TABELA PROFISSIONAL
+-- Dados específicos de quem presta serviços
+-- =========================================================================
+
+CREATE TABLE Profissional (
+    idProfissional INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+    idUsuario INT UNSIGNED NOT NULL UNIQUE,
+
+    idProfissao INT UNSIGNED NOT NULL,
+
+    descricao VARCHAR(500),
+
+    experienciaAnos INT UNSIGNED NOT NULL DEFAULT 0,
+
+    CONSTRAINT fk_profissional_usuario
+        FOREIGN KEY (idUsuario)
+        REFERENCES Usuario(idUsuario),
+
+    CONSTRAINT fk_profissional_profissao
+        FOREIGN KEY (idProfissao)
+        REFERENCES Profissao(idProfissao)
+);
+
+
+-- =========================================================================
+-- 5. TABELA SERVICO
+-- Serviços oferecidos pelos profissionais
+-- =========================================================================
+
+CREATE TABLE Servico (
+    idServico INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+    idProfissional INT UNSIGNED NOT NULL,
+
+    nomeServico VARCHAR(100) NOT NULL,
+
+    descricao VARCHAR(500),
+
+    precoBase DECIMAL(10,2) NOT NULL,
+
+    CONSTRAINT fk_servico_profissional
+        FOREIGN KEY (idProfissional)
+        REFERENCES Profissional(idProfissional)
+);
+
+
+-- =========================================================================
+-- 6. TABELA SOLICITACAO
+-- Cliente solicita um serviço
+-- =========================================================================
+
+CREATE TABLE Solicitacao (
+    idSolicitacao INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+    idCliente INT UNSIGNED NOT NULL,
+
+    idServico INT UNSIGNED NOT NULL,
+
+    idEndereco INT UNSIGNED NOT NULL,
+
+    dataSolicitacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    dataAgendada DATETIME,
+
+    statusSolicitacao ENUM(
+        'PENDENTE',
+        'ACEITA',
+        'EM_ANDAMENTO',
+        'CONCLUIDA',
+        'CANCELADA'
+    ) NOT NULL DEFAULT 'PENDENTE',
+
+    valorAcordado DECIMAL(10,2) NOT NULL,
+
+    CONSTRAINT fk_solicitacao_cliente
+        FOREIGN KEY (idCliente)
+        REFERENCES Usuario(idUsuario),
+
+    CONSTRAINT fk_solicitacao_servico
+        FOREIGN KEY (idServico)
+        REFERENCES Servico(idServico),
+
+    CONSTRAINT fk_solicitacao_endereco
+        FOREIGN KEY (idEndereco)
+        REFERENCES Endereco(idEndereco)
+);
+
+
+-- =========================================================================
+-- 7. TABELA PAGAMENTO
+-- Pagamentos associados a uma solicitação
+-- =========================================================================
+
+CREATE TABLE Pagamento (
+    idPagamento INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+    idSolicitacao INT UNSIGNED NOT NULL,
+
+    valor DECIMAL(10,2) NOT NULL,
+
+    formaPagamento ENUM(
+        'PIX',
+        'DINHEIRO',
+        'CARTAO'
+    ) NOT NULL,
+
+    statusPagamento ENUM(
+        'PENDENTE',
+        'APROVADO',
+        'RECUSADO',
+        'ESTORNADO'
+    ) NOT NULL DEFAULT 'PENDENTE',
+
+    dataPagamento DATETIME,
+
+    CONSTRAINT fk_pagamento_solicitacao
+        FOREIGN KEY (idSolicitacao)
+        REFERENCES Solicitacao(idSolicitacao)
+);
+
+
+-- =========================================================================
+-- 8. TABELA AVALIACAO
+-- Cliente avalia o profissional
+-- =========================================================================
+
+CREATE TABLE Avaliacao (
+    idAvaliacao INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+    idSolicitacao INT UNSIGNED NOT NULL UNIQUE,
+
+    nota TINYINT UNSIGNED NOT NULL,
+
+    comentario VARCHAR(500),
+
+    dataAvaliacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_avaliacao_solicitacao
+        FOREIGN KEY (idSolicitacao)
+        REFERENCES Solicitacao(idSolicitacao),
+
+    CONSTRAINT chk_nota
+        CHECK (nota BETWEEN 1 AND 5)
+);
+
+
+-- =========================================================================
+-- 9. POVOAMENTO DO BANCO
+-- =========================================================================
+
+
+-- USUARIOS
+
+INSERT INTO Usuario
+(nome, telefone, senha, tipoUsuario)
+VALUES
+('Carlos Silva', '84999990001', 'hash_senha_carlos', 'CLIENTE'),
+
+('Joao Santos', '84999990002', 'hash_senha_joao', 'PROFISSIONAL'),
+
+('Maria Oliveira', '84999990003', 'hash_senha_maria', 'CLIENTE'),
+
+('Pedro Costa', '84999990004', 'hash_senha_pedro', 'PROFISSIONAL');
+
+
+-- ENDERECOS
+
+INSERT INTO Endereco
+(idUsuario, logradouro, numero, bairro, cidade, uf, cep)
+VALUES
+(1, 'Rua das Flores', '120', 'Centro', 'Tibau do Sul', 'RN', '59178000'),
+
+(2, 'Rua Brasil', '45', 'Centro', 'Tibau do Sul', 'RN', '59178000'),
+
+(3, 'Avenida Principal', '200', 'Centro', 'Tibau do Sul', 'RN', '59178000'),
+
+(4, 'Rua do Sol', '80', 'Centro', 'Tibau do Sul', 'RN', '59178000');
+
+
+-- PROFISSOES
+
+INSERT INTO Profissao
+(nomeProfissao, descricao)
+VALUES
+('Pedreiro', 'Construção e reformas'),
+
+('Eletricista', 'Instalações e manutenção elétrica'),
+
+('Encanador', 'Instalações hidráulicas'),
+
+('Pintor', 'Pintura residencial e comercial');
+
+
+-- PROFISSIONAIS
+
+INSERT INTO Profissional
+(idUsuario, idProfissao, descricao, experienciaAnos)
+VALUES
+(2, 1, 'Profissional especializado em construção e reformas', 5),
+
+(4, 2, 'Eletricista residencial e comercial', 3);
+
+
+-- SERVICOS
+
+INSERT INTO Servico
+(idProfissional, nomeServico, descricao, precoBase)
+VALUES
+(1, 'Construção de parede', 'Construção de paredes residenciais', 250.00),
+
+(1, 'Reforma residencial', 'Serviços gerais de reforma', 500.00),
+
+(2, 'Instalação elétrica', 'Instalação elétrica residencial', 180.00);
+
+
+-- SOLICITACOES
+
+INSERT INTO Solicitacao
+(idCliente, idServico, idEndereco, dataAgendada,
+ statusSolicitacao, valorAcordado)
+VALUES
+(1, 1, 1, '2026-11-05 08:00:00', 'ACEITA', 250.00),
+
+(3, 3, 3, '2026-11-06 14:00:00', 'PENDENTE', 180.00),
+
+(1, 2, 1, '2026-11-07 09:00:00', 'CONCLUIDA', 500.00);
+
+
+-- PAGAMENTOS
+
+INSERT INTO Pagamento
+(idSolicitacao, valor, formaPagamento, statusPagamento)
+VALUES
+(1, 250.00, 'PIX', 'PENDENTE'),
+
+(2, 180.00, 'DINHEIRO', 'PENDENTE'),
+
+(3, 500.00, 'PIX', 'APROVADO');
+
+
+-- AVALIACAO
+
+INSERT INTO Avaliacao
+(idSolicitacao, nota, comentario)
+VALUES
+(3, 5, 'Excelente profissional!');
+
+
+-- =========================================================================
+-- 10. CONSULTAS DO SISTEMA
+-- =========================================================================
+
+
+-- CONSULTA 1:
+-- Listar profissionais e suas profissões
+
+SELECT
+    u.nome AS profissional,
+    p.nomeProfissao AS profissao,
+    pr.experienciaAnos AS experiencia,
+    pr.descricao AS descricao
+FROM Profissional pr
+
+INNER JOIN Usuario u
+    ON pr.idUsuario = u.idUsuario
+
+INNER JOIN Profissao p
+    ON pr.idProfissao = p.idProfissao;
+
+
+-- CONSULTA 2:
+-- Listar serviços disponíveis
+
+SELECT
+    s.idServico,
+    s.nomeServico AS servico,
+    p.nomeProfissao AS profissao,
+    u.nome AS profissional,
+    s.precoBase AS preco
+FROM Servico s
+
+INNER JOIN Profissional pr
+    ON s.idProfissional = pr.idProfissional
+
+INNER JOIN Usuario u
+    ON pr.idUsuario = u.idUsuario
+
+INNER JOIN Profissao p
+    ON pr.idProfissao = p.idProfissao;
+
+
+-- CONSULTA 3:
+-- Mostrar solicitações dos clientes
+
+SELECT
+    so.idSolicitacao,
+    cliente.nome AS cliente,
+    profissional.nome AS profissional,
+    serv.nomeServico AS servico,
+    so.dataAgendada AS agendamento,
+    so.statusSolicitacao AS status,
+    so.valorAcordado AS valor
+FROM Solicitacao so
+
+INNER JOIN Usuario cliente
+    ON so.idCliente = cliente.idUsuario
+
+INNER JOIN Servico serv
+    ON so.idServico = serv.idServico
+
+INNER JOIN Profissional pr
+    ON serv.idProfissional = pr.idProfissional
+
+INNER JOIN Usuario profissional
+    ON pr.idUsuario = profissional.idUsuario
+
+ORDER BY so.dataSolicitacao DESC;
+
+
+-- CONSULTA 4:
+-- Total de serviços concluídos por profissional
+
+SELECT
+    u.nome AS profissional,
+
+    COUNT(so.idSolicitacao) AS totalServicos,
+
+    SUM(so.valorAcordado) AS faturamentoBruto
+
+FROM Profissional pr
+
+INNER JOIN Usuario u
+    ON pr.idUsuario = u.idUsuario
+
+INNER JOIN Servico s
+    ON pr.idProfissional = s.idProfissional
+
+INNER JOIN Solicitacao so
+    ON s.idServico = so.idServico
+
+WHERE so.statusSolicitacao = 'CONCLUIDA'
+
+GROUP BY pr.idProfissional, u.nome;
+
+
+-- CONSULTA 5:
+-- Média das avaliações dos profissionais
+
+SELECT
+    u.nome AS profissional,
+
+    ROUND(AVG(a.nota), 2) AS mediaAvaliacao,
+
+    COUNT(a.idAvaliacao) AS totalAvaliacoes
+
+FROM Profissional pr
+
+INNER JOIN Usuario u
+    ON pr.idUsuario = u.idUsuario
+
+INNER JOIN Servico s
+    ON pr.idProfissional = s.idProfissional
+
+INNER JOIN Solicitacao so
+    ON s.idServico = so.idServico
+
+INNER JOIN Avaliacao a
+    ON so.idSolicitacao = a.idSolicitacao
+
+GROUP BY pr.idProfissional, u.nome;
+
+
+-- CONSULTA 6:
+-- Mostrar pagamentos aprovados
+
+SELECT
+    so.idSolicitacao,
+
+    u.nome AS cliente,
+
+    pg.valor,
+
+    pg.formaPagamento,
+
+    pg.statusPagamento
+
+FROM Pagamento pg
+
+INNER JOIN Solicitacao so
+    ON pg.idSolicitacao = so.idSolicitacao
+
+INNER JOIN Usuario u
+    ON so.idCliente = u.idUsuario
+
+WHERE pg.statusPagamento = 'APROVADO';
+
+
+-- =========================================================================
+-- FIM DO BANCO TRABALHE+
+-- =========================================================================
